@@ -1,0 +1,17 @@
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowSplashScreenBackground">#070707</item>
+        <item name="android:windowBackground">#070707</item>
+        
+        <!-- Boja status bara -->
+        <item name="android:statusBarColor">#070707</item>
+        
+        <!-- Boja navigation bara -->
+        <item name="android:navigationBarColor">#070707</item>
+
+        <!-- Opciono: Ako želiš da ikonice u status/nav baru budu tamne ili svetle -->
+        <!-- Za tamne ikonice (ako je pozadina svetla): true, za svetle ikonice: false -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

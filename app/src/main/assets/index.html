@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Loader</title>
+
+<style>
+:root{
+    --main-background: #070707;
+    --btn-accent: #CBD868;
+    --btn-hover: #A4A25C;
+    --btn-active: #8C7F6F;
+}
+
+/* Back. */
+html, body{
+    margin:0;
+    height:100%;
+    font-family: Inter, Arial, sans-serif;
+    background: var(--main-background);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+    user-select: none;    
+}
+
+/* Popup */
+.popup{
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% - 32px);
+    max-width: 340px;
+    background: #1a1a1c;
+    border-radius: 12px;
+    border: none;
+    padding: 22px 18px;
+    box-shadow: 0 0 0 0.9px #7C874F;
+    box-sizing: border-box;
+    overflow: hidden;
+    word-wrap: break-word;
+    z-index: 1000;
+}
+
+/* Title */
+.popup h3{
+    margin-top: -6px;
+    margin-bottom: 40px;
+    color: #CBD868;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Checkbox container */
+.checkbox-row {
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    margin: 12px 0 0px 4px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    color: #DADADA;
+    font-size: 14px;
+    text-align: left;
+    min-height: 22px;
+}
+
+.checkbox-row label {
+    color: #DADADA;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    user-select: none;
+    text-align: left;
+}
+
+/* Custom Checkbox */
+.checkbox-row label input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background-color: #262822; 
+    border: 1.5px solid #555b35;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: filter 0.15s, background-color 0.15s, border-color 0.15s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+}
+
+/* Inside Tick */
+.checkbox-row label input[type="checkbox"]::after {
+    content: "";
+    width: 3px;
+    height: 8px;
+    border: solid #555;
+    border-width: 0 2px 2px 0;
+    transform: rotate(40deg) scale(0);
+    transition: transform 0.15s ease-in-out;
+    position: relative;
+    top: -1px;
+    filter: brightness(0); 
+}
+
+/* Checked state */
+.checkbox-row label input[type="checkbox"]:checked {
+    background-color: var(--btn-accent);
+    border-color: var(--btn-accent);
+}
+
+.checkbox-row label input[type="checkbox"]:checked::after {
+    transform: rotate(40deg) scale(1);
+}
+
+/* Checkbox - hover & click */
+@media (hover: hover) and (pointer: fine) {
+    .checkbox-row label input[type="checkbox"]:hover {
+        filter: brightness(1.25);
+    }
+}
+
+.checkbox-row label input[type="checkbox"]:active {
+    filter: brightness(1.25);
+}
+
+/* Butn. row */
+.row{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+/* Butn. in popup */
+.row button{
+    flex: 1 1 0;
+    width: 0;
+    min-width: 30%;
+    max-width: 60%;
+    box-sizing: border-box;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    background-color: var(--btn-accent) !important;
+    color: #555 !important;
+    transition: filter 0.15s, background 0.15s;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+}
+
+/* Hover */
+@media (hover: hover) and (pointer: fine) {
+    .row button:hover{
+        filter: brightness(1.25);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    }
+}
+
+/* Click */
+.row button:active{
+    filter: brightness(1.25);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+
+/* Mask text */
+.mask-text{
+    color: #555;
+    filter: brightness(0);
+}
+
+.row button:focus{
+    outline: none;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+</style>
+</head>
+<body>
+
+<div class="popup">
+    <h3 id="popupTitle">Load Html</h3>
+    
+    <div id="checkboxContainer" class="checkbox-row"></div>
+    
+    <div class="row">
+        <button id="loadBtn">
+            <span id="loadBtnText" class="mask-text">Load</span>
+        </button>
+        <button id="exitBtn">
+            <span class="mask-text">Close</span>
+        </button>
+    </div>
+    
+    <input type="file" id="fileInput" class="hidden-file-input" accept=".html,.htm" />
+</div>
+
+<script>
+
+//========================
+//  INDEXED DB STORAGE
+//========================
+const DB_NAME = "LDR_DB";
+const STORE_NAME = "apps";
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = function(e) {
+            const db = e.target.result;
+            db.createObjectStore(STORE_NAME);
+        };
+        request.onsuccess = function(e) { resolve(e.target.result); };
+        request.onerror = function() { reject("IndexedDB error"); };
+    });
+}
+
+async function saveApp(htmlContent, fileName = "app.html"){
+    const db = await openDB();
+    return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put(htmlContent, "userApp");
+        store.put(fileName, "userAppName");
+        tx.oncomplete = () => resolve();
+    });
+}
+
+async function getSavedApp(){
+    const db = await openDB();
+    return new Promise(resolve => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const reqApp = store.get("userApp");
+        const reqName = store.get("userAppName");
+        
+        let result = {};
+        reqApp.onsuccess = () => {
+            result.content = reqApp.result;
+            if (result.content !== undefined && result.name !== undefined) resolve(result);
+        };
+        reqName.onsuccess = () => {
+            result.name = reqName.result;
+            if (result.content !== undefined && result.name !== undefined) resolve(result);
+        };
+        setTimeout(() => resolve(null), 350);
+    });
+}
+
+async function saveSetting(key, value){
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(value, key);
+}
+
+async function getSetting(key){
+    const db = await openDB();
+    return new Promise(resolve => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(undefined);
+    });
+}
+
+//==========================
+//  MENU FUNCTIONS
+//==========================
+async function showPopup() {
+    const title = document.getElementById("popupTitle");
+    const checkboxContainer = document.getElementById("checkboxContainer");
+    const popup = document.querySelector(".popup");
+
+    title.innerText = "Load Html";
+
+    checkboxContainer.innerHTML = `
+        <label>
+            <input type="checkbox" id="clearDataCheckbox">
+            <span>Clear local cache and data</span>
+        </label>
+    `;
+
+    const clearCheckbox = document.getElementById("clearDataCheckbox");
+   
+    const savedState = await getSetting("clearCachePreference");
+    clearCheckbox.checked = (savedState === undefined || savedState === null) ? false : savedState;
+
+    clearCheckbox.addEventListener("change", function() {
+        saveSetting("clearCachePreference", clearCheckbox.checked);
+    });
+
+    popup.style.display = "flex";
+}
+
+function hidePopup() {
+    document.querySelector(".popup").style.display = "none";
+}
+
+//=========================
+//  LOAD FUNCTION
+//=========================
+async function loadApp(htmlContent, fileName = ""){
+    hidePopup();
+
+    const customPopupScript = `
+    <script>
+    (function() {
+        const container = document.createElement("div");
+        container.id = "injectedPopupContainer";
+        document.body.appendChild(container);
+        const shadow = container.attachShadow({ mode: "open" });
+
+        shadow.innerHTML = \`
+        <style>
+            .popup {
+                display: none;
+                flex-direction: column;
+                align-items: stretch;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: calc(100% - 32px);
+                max-width: 340px;
+                background: #1a1a1c;
+                border-radius: 12px;
+                border: none;
+                padding: 22px 18px;
+                box-shadow: 0 0 0 0.9px #7C874F;
+                box-sizing: border-box;
+                overflow: hidden;
+                word-wrap: break-word;
+                z-index: 2147483647;
+                font-family: Inter, Arial, sans-serif;
+                user-select: none;
+            }
+            .popup h3 {
+                margin-top: -6px;
+                margin-bottom: 40px;
+                color: #CBD868;
+                font-size: 17px;
+                font-weight: 600;
+                text-align: center;
+            }
+            .checkbox-row {
+                -webkit-tap-highlight-color: transparent;
+                appearance: none;
+                margin: 12px 0 0px 4px;
+                display: flex;
+                justify-content: flex-start;
+                align-items: center;
+                color: #DADADA;
+                font-size: 14px;
+                text-align: left;
+                min-height: 22px;
+            }
+            .checkbox-row label {
+                color: #DADADA;
+                font-size: 14px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 11px;
+                user-select: none;
+                text-align: left;
+            }
+            .checkbox-row label input[type="checkbox"] {
+                appearance: none;
+                -webkit-appearance: none;
+                width: 16px;
+                height: 16px;
+                background-color: #262822; 
+                border: 1.5px solid #555b35;
+                border-radius: 4px;
+                cursor: pointer;
+                outline: none;
+                margin: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: filter 0.15s, background-color 0.15s, border-color 0.15s;
+                position: relative;
+                -webkit-tap-highlight-color: transparent;
+                box-sizing: border-box;
+            }
+            .checkbox-row label input[type="checkbox"]::after {
+                content: "";
+                width: 3px;
+                height: 8px;
+                border: solid #555;
+                border-width: 0 2px 2px 0;
+                transform: rotate(40deg) scale(0);
+                transition: transform 0.15s ease-in-out;
+                position: relative;
+                top: -1px;
+                filter: brightness(0); 
+            }
+            .checkbox-row label input[type="checkbox"]:checked {
+                background-color: #CBD868;
+                border-color: #CBD868;
+            }
+            .checkbox-row label input[type="checkbox"]:checked::after {
+                transform: rotate(40deg) scale(1);
+            }
+            @media (hover: hover) and (pointer: fine) {
+                .checkbox-row label input[type="checkbox"]:hover {
+                    filter: brightness(1.25);
+                }
+            }
+            .checkbox-row label input[type="checkbox"]:active {
+                filter: brightness(1.25);
+            }
+            .row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                justify-content: center;
+                margin-top: 16px;
+            }
+            .row button {
+                flex: 1 1 0;
+                width: 0;
+                min-width: 30%;
+                max-width: 60%;
+                box-sizing: border-box;
+                padding: 11px;
+                border-radius: 10px;
+                border: none;
+                cursor: pointer;
+                font-weight: 600;
+                background-color: #CBD868 !important;
+                color: #555 !important;
+                outline: none;
+                -webkit-tap-highlight-color: transparent;
+                transition: filter 0.15s, background 0.15s;
+            }
+            @media (hover: hover) and (pointer: fine) {
+                .row button:hover {
+                    filter: brightness(1.25);
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                }
+            }
+            .row button:active {
+                filter: brightness(1.25);
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            }
+            .mask-text {
+                color: #555;
+                filter: brightness(0);
+            }
+        </style>
+
+        <div id="injectedPopup" class="popup">
+            <h3>Load Html</h3>
+            <div class="checkbox-row">
+                <label>
+                    <input type="checkbox" id="injectedClearDataCheckbox">
+                    <span>Clear local cache and data</span>
+                </label>
+            </div>
+            <div class="row">
+                <button id="injectedLoadBtn">
+                    <span class="mask-text">Load</span>
+                </button>
+                <button id="injectedCancelBtn">
+                    <span class="mask-text">Close</span>
+                </button>
+            </div>
+        </div>
+        \`;
+
+        let tapCount = 0;
+        let tapTimeout = null;
+        let startX = 0;
+        let startY = 0;
+        const popup = shadow.getElementById("injectedPopup");
+        const clearCheckbox = shadow.getElementById("injectedClearDataCheckbox");
+
+        const DB_NAME = "LDR_DB";
+        const STORE_NAME = "apps";
+
+        const requestPref = indexedDB.open(DB_NAME, 1);
+        requestPref.onsuccess = function(e) {
+            const db = e.target.result;
+            if (db.objectStoreNames.contains(STORE_NAME)) {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get("clearCachePreference");
+                req.onsuccess = function() {
+                    if (req.result !== undefined && req.result !== null) {
+                        clearCheckbox.checked = req.result;
+                    }
+                };
+            }
+        };
+
+        clearCheckbox.addEventListener("change", function() {
+            const reqDB = indexedDB.open(DB_NAME, 1);
+            reqDB.onsuccess = function(e) {
+                const db = e.target.result;
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                store.put(clearCheckbox.checked, "clearCachePreference");
+            };
+        });
+
+        document.addEventListener("touchstart", function(e) {
+            if (popup.style.display === "flex") return;
+
+            if (e.touches.length > 1) {
+                tapCount = 0;
+                if (tapTimeout) clearTimeout(tapTimeout);
+                return;
+            }
+
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+
+            tapCount++;
+            if (tapTimeout) clearTimeout(tapTimeout);
+
+            if (tapCount >= 6) {
+                tapCount = 0;
+                popup.style.display = "flex";
+            } else {
+                tapTimeout = setTimeout(() => {
+                    tapCount = 0;
+                }, 350);
+            }
+        }, { capture: true, passive: true });
+
+        document.addEventListener("touchmove", function(e) {
+            if (popup.style.display === "flex" || tapCount === 0) return;
+
+            if (e.touches.length > 0) {
+                const moveX = e.touches[0].clientX;
+                const moveY = e.touches[0].clientY;
+
+                if (Math.abs(moveX - startX) > 10 || Math.abs(moveY - startY) > 10) {
+                    tapCount = 0;
+                    if (tapTimeout) clearTimeout(tapTimeout);
+                }
+            }
+        }, { capture: true, passive: true });
+
+        shadow.getElementById("injectedCancelBtn").addEventListener("click", function() {
+            popup.style.display = "none";
+        });
+
+        shadow.getElementById("injectedLoadBtn").addEventListener("click", function() {
+            let fileInput = document.createElement("input");
+            fileInput.type = "file";
+            fileInput.accept = ".html,.htm";
+            fileInput.style.display = "none";
+            document.body.appendChild(fileInput);
+
+            fileInput.addEventListener("change", async function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const fileName = file.name ? file.name.toLowerCase() : "";
+                    if (file.type === "text/html" || file.type === "" || fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+                        const reader = new FileReader();
+                        reader.onload = async function(e2) {
+                            const htmlContent = e2.target.result;
+
+                            if (clearCheckbox.checked) {
+                                try {
+                                    localStorage.clear();
+                                    sessionStorage.clear();
+                                    document.cookie.split(";").forEach(function(c) { 
+                                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                                    });
+                                    if ('caches' in window) {
+                                        const cacheNames = await caches.keys();
+                                        for (const name of cacheNames) {
+                                            await caches.delete(name);
+                                        }
+                                    }
+                                    if (indexedDB && indexedDB.databases) {
+                                        const dbs = await indexedDB.databases();
+                                        for (const dbInfo of dbs) {
+                                            if (dbInfo.name && dbInfo.name !== DB_NAME) {
+                                                indexedDB.deleteDatabase(dbInfo.name);
+                                            }
+                                        }
+                                    }
+                                } catch(err) {}
+                            }
+
+                            const reqDB = indexedDB.open(DB_NAME, 1);
+                            reqDB.onsuccess = function(e3) {
+                                const db = e3.target.result;
+                                const tx = db.transaction(STORE_NAME, "readwrite");
+                                const store = tx.objectStore(STORE_NAME);
+                                store.put(htmlContent, "userApp");
+                                store.put(fileName, "userAppName");
+                                tx.oncomplete = function() {
+                                    location.reload();
+                                };
+                            };
+                        };
+                        reader.readAsText(file);
+                    } else {
+                        alert("Please select a valid HTML file.");
+                    }
+                }
+            });
+
+            fileInput.click();
+        });
+    })();
+    <\/script>
+    `;
+
+    let modifiedHtml = htmlContent;
+    const bodyRegex = /<\/body>/i;
+    if (bodyRegex.test(modifiedHtml)) {
+        modifiedHtml = modifiedHtml.replace(bodyRegex, customPopupScript + "</body>");
+    } else {
+        modifiedHtml += customPopupScript;
+    }
+
+    document.open();
+    document.write(modifiedHtml);
+    document.close();
+}
+
+//========================
+//  AUTO LOAD APP
+//========================
+getSavedApp().then(saved => {
+    if(saved && saved.content){
+        loadApp(saved.content, saved.name || "");
+    } else {
+        showPopup();
+    }
+});
+
+//=========================
+//  LOAD / REPLACE BUTTON
+//=========================
+document.getElementById("loadBtn").addEventListener("click", function(){
+    document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", function(event){
+    const file = event.target.files[0];
+    if(file){
+        const fileName = file.name ? file.name.toLowerCase() : "";
+        if(file.type === "text/html" || file.type === "" || fileName.endsWith(".html") || fileName.endsWith(".htm")){
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const htmlContent = e.target.result;
+
+                const clearCheckbox = document.getElementById("clearDataCheckbox");
+                const shouldClearData = clearCheckbox && clearCheckbox.checked;
+
+                if (shouldClearData) {
+                    try {
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        document.cookie.split(";").forEach(function(c) { 
+                            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                        });
+                        if ('caches' in window) {
+                            const cacheNames = await caches.keys();
+                            for (const name of cacheNames) {
+                                await caches.delete(name);
+                            }
+                        }
+                        if (indexedDB && indexedDB.databases) {
+                            const dbs = await indexedDB.databases();
+                            for (const dbInfo of dbs) {
+                                if (dbInfo.name && dbInfo.name !== DB_NAME) {
+                                    indexedDB.deleteDatabase(dbInfo.name);
+                                }
+                            }
+                        }
+                    } catch(err) {}
+                }
+
+                await saveApp(htmlContent, fileName);
+                loadApp(htmlContent, fileName);
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        } else {
+            alert("Please select a valid HTML file.");
+        }
+    }
+});
+
+//========================
+//  EXIT BUTTON
+//========================
+document.getElementById("exitBtn").addEventListener("click", function(){
+    window.close();
+});
+
+</script>
+</body>
+</html>
